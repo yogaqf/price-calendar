@@ -2,12 +2,14 @@
 
 import type { DailyPrice, WeeklySummary } from "@/lib/types";
 import { XIcon, TrendUpIcon, TrendDownIcon } from "./icons";
+import { type UnitMode, formatChangeByMode } from "@/lib/pips";
 
 interface DayDetailProps {
   day?: DailyPrice | null;
   week?: WeeklySummary | null;
   currency: string;
   symbol: string;
+  unitMode: UnitMode;
   onClose: () => void;
 }
 
@@ -31,15 +33,9 @@ function formatNumber(value: number, currency: string): string {
 }
 
 function formatVolume(volume: number): string {
-  if (volume >= 1_000_000_000) {
-    return `${(volume / 1_000_000_000).toFixed(2)}B`;
-  }
-  if (volume >= 1_000_000) {
-    return `${(volume / 1_000_000).toFixed(2)}M`;
-  }
-  if (volume >= 1_000) {
-    return `${(volume / 1_000).toFixed(2)}K`;
-  }
+  if (volume >= 1_000_000_000) return `${(volume / 1_000_000_000).toFixed(2)}B`;
+  if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(2)}M`;
+  if (volume >= 1_000) return `${(volume / 1_000).toFixed(2)}K`;
   return volume.toLocaleString();
 }
 
@@ -53,11 +49,137 @@ function formatDate(dateStr: string): string {
   });
 }
 
+/**
+ * Visual Candlestick component rendering the OHLC candle proportionally
+ */
+function CandlestickVisual({
+  open,
+  high,
+  low,
+  close,
+  currency,
+}: {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  currency: string;
+}) {
+  const isBullish = close >= open;
+  const range = high - low;
+  const candleHeight = 110; // SVG height in pixels
+
+  if (range <= 0) return null;
+
+  // Compute pixel positions from top (0 = high, candleHeight = low)
+  const highY = 8;
+  const lowY = candleHeight - 8;
+  const availableH = lowY - highY;
+
+  const topBodyVal = Math.max(open, close);
+  const bottomBodyVal = Math.min(open, close);
+
+  const topBodyY = highY + ((high - topBodyVal) / range) * availableH;
+  const bottomBodyY = highY + ((high - bottomBodyVal) / range) * availableH;
+  const rawBodyH = bottomBodyY - topBodyY;
+  const bodyH = Math.max(3, rawBodyH); // at least 3px for Doji
+
+  const bodyColor = isBullish ? "#10b981" : "#ef4444";
+  const bodyFill = isBullish ? "#10b981" : "#ef4444";
+
+  return (
+    <div className="bg-zinc-50/70 dark:bg-zinc-800/40 rounded-xl p-3 border border-zinc-100 dark:border-zinc-800">
+      <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">
+        <span>Candlestick Range</span>
+        <span
+          className={`font-mono font-bold ${
+            isBullish
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-red-500 dark:text-red-400"
+          }`}
+        >
+          {isBullish ? "Bullish Candle" : "Bearish Candle"}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        {/* SVG Candle */}
+        <div className="w-16 flex justify-center">
+          <svg width="48" height={candleHeight} className="overflow-visible">
+            {/* High to Low Wick line */}
+            <line
+              x1="24"
+              y1={highY}
+              x2="24"
+              y2={lowY}
+              stroke={bodyColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            {/* Candle Body */}
+            <rect
+              x="12"
+              y={topBodyY}
+              width="24"
+              height={bodyH}
+              rx="2"
+              fill={bodyFill}
+              stroke={bodyColor}
+              strokeWidth="1.5"
+            />
+          </svg>
+        </div>
+
+        {/* Labeled Price Markers */}
+        <div className="flex-1 space-y-1 text-xs font-mono">
+          <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+            <span>High:</span>
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+              {formatNumber(high, currency)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+            <span>{isBullish ? "Close:" : "Open:"}</span>
+            <span
+              className={`font-semibold ${
+                isBullish
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-zinc-800 dark:text-zinc-200"
+              }`}
+            >
+              {formatNumber(topBodyVal, currency)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+            <span>{isBullish ? "Open:" : "Close:"}</span>
+            <span
+              className={`font-semibold ${
+                !isBullish
+                  ? "text-red-500 dark:text-red-400"
+                  : "text-zinc-800 dark:text-zinc-200"
+              }`}
+            >
+              {formatNumber(bottomBodyVal, currency)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
+            <span>Low:</span>
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+              {formatNumber(low, currency)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DayDetail({
   day,
   week,
   currency,
   symbol,
+  unitMode,
   onClose,
 }: DayDetailProps) {
   const isWeekly = Boolean(week);
@@ -107,7 +229,7 @@ export default function DayDetail({
       </div>
 
       {/* Price Summary */}
-      <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
             {formatNumber(data.close, currency)}
@@ -128,13 +250,13 @@ export default function DayDetail({
                 <TrendDownIcon className="w-4 h-4" />
               ) : null}
               <span>
-                {isPositive ? "+" : ""}
-                {data.changePercent.toFixed(2)}%
+                {formatChangeByMode(data.change, data.changePercent, symbol, currency, unitMode)}
               </span>
             </div>
           )}
         </div>
-        {data.change != null && (
+        {/* Secondary line: always show the other unit */}
+        {data.change != null && data.changePercent != null && (
           <div
             className={`text-xs mt-0.5 ${
               isPositive
@@ -144,15 +266,26 @@ export default function DayDetail({
                 : "text-zinc-500"
             }`}
           >
-            {isPositive ? "+" : ""}
-            {formatNumber(data.change, currency)}
-            {isWeekly ? " (Weekly Change)" : " (Daily Change)"}
+            {unitMode === "percent"
+              ? `${isPositive ? "+" : ""}${formatNumber(data.change, currency)}${isWeekly ? " (Weekly Change)" : " (Daily Change)"}`
+              : `${isPositive ? "+" : ""}${data.changePercent.toFixed(2)}%${isWeekly ? " (Weekly)" : " (Daily)"}`}
           </div>
         )}
       </div>
 
+      {/* Candlestick Visualizer */}
+      <div className="p-4 pb-2">
+        <CandlestickVisual
+          open={data.open}
+          high={data.high}
+          low={data.low}
+          close={data.close}
+          currency={currency}
+        />
+      </div>
+
       {/* OHLC table */}
-      <div className="p-4 space-y-2">
+      <div className="p-4 pt-2 space-y-2">
         {[
           { label: isWeekly ? "Week Open" : "Open", value: data.open },
           { label: isWeekly ? "Week High" : "High", value: data.high },
@@ -178,7 +311,7 @@ export default function DayDetail({
         ))}
 
         {isWeekly && week && (
-          <div className="flex justify-between items-center pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-800">
             <span className="text-sm text-zinc-500 dark:text-zinc-400">
               Trading Days
             </span>
@@ -189,7 +322,7 @@ export default function DayDetail({
         )}
 
         {data.volume != null && (
-          <div className="flex justify-between items-center pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-800">
             <span className="text-sm text-zinc-500 dark:text-zinc-400">
               {isWeekly ? "Total Volume" : "Volume"}
             </span>

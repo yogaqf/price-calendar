@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #1e293b;
+}
+
+.dark {
+  --background: #0d1117;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -12,15 +19,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  /* Soft, eye-pleasing theme scale with clear visible borders */
+  --color-zinc-950: #0d1117; /* Soft dark canvas */
+  --color-zinc-900: #151a23; /* Soft dark card/panel */
+  --color-zinc-800: #262e3d; /* Soft dark border & hover state */
+  --color-zinc-700: #384256;
+  --color-zinc-600: #64748b;
+  --color-zinc-500: #8896aa;
+  --color-zinc-400: #9daec5; /* Readable secondary text in dark */
+  --color-zinc-300: #94a3b8;
+  --color-zinc-200: #cbd5e1; /* Visible, crisp soft gray border in light mode */
+  --color-zinc-100: #e2e8f0; /* Visible sub-divider border in light mode */
+  --color-zinc-50: #f8fafc;  /* Soft light background */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

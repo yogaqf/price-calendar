@@ -1,6 +1,7 @@
 "use client";
 
 import type { DailyPrice, HistoryResponse, WeeklySummary } from "@/lib/types";
+import { type UnitMode, formatChangeByMode } from "@/lib/pips";
 
 interface CalendarGridProps {
   year: number;
@@ -10,6 +11,8 @@ interface CalendarGridProps {
   selectedWeekIndex: number | null;
   onSelectDate: (day: DailyPrice) => void;
   onSelectWeek: (week: WeeklySummary) => void;
+  unitMode: UnitMode;
+  symbol: string;
 }
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Weekly"];
@@ -36,10 +39,6 @@ function formatPrice(value: number): string {
   });
 }
 
-function formatPct(pct: number): string {
-  const sign = pct > 0 ? "+" : "";
-  return `${sign}${pct.toFixed(2)}%`;
-}
 
 interface WeekRowData {
   weekIndex: number;
@@ -55,6 +54,8 @@ export default function CalendarGrid({
   selectedWeekIndex,
   onSelectDate,
   onSelectWeek,
+  unitMode,
+  symbol,
 }: CalendarGridProps) {
   // Build lookup map: date string -> DailyPrice
   const priceMap = new Map<string, DailyPrice>();
@@ -190,7 +191,7 @@ export default function CalendarGrid({
       </div>
 
       {/* Calendar Rows */}
-      <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
         {weekRows.map((row) => {
           const isWeekSelected = selectedWeekIndex === row.weekIndex;
 
@@ -202,7 +203,7 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={`empty-${row.weekIndex}-${colIdx}`}
-                      className="border-r border-zinc-100 dark:border-zinc-800 min-h-[72px] sm:min-h-[88px] bg-zinc-50/50 dark:bg-zinc-800/20"
+                      className="border-r border-zinc-200 dark:border-zinc-800 min-h-[72px] sm:min-h-[88px] bg-zinc-50/50 dark:bg-zinc-800/20"
                     />
                   );
                 }
@@ -216,11 +217,11 @@ export default function CalendarGrid({
                 let changeText = "";
                 if (price?.changePercent != null) {
                   if (price.changePercent > 0) {
-                    changeBg = "bg-emerald-50 dark:bg-emerald-950/30";
-                    changeText = "text-emerald-600 dark:text-emerald-400";
+                    changeBg = "bg-emerald-500/10 dark:bg-emerald-500/15";
+                    changeText = "text-emerald-700 dark:text-emerald-300";
                   } else if (price.changePercent < 0) {
-                    changeBg = "bg-red-50 dark:bg-red-950/30";
-                    changeText = "text-red-500 dark:text-red-400";
+                    changeBg = "bg-rose-500/10 dark:bg-rose-500/15";
+                    changeText = "text-rose-700 dark:text-rose-300";
                   } else {
                     changeText = "text-zinc-500";
                   }
@@ -231,7 +232,7 @@ export default function CalendarGrid({
                     key={dateStr}
                     onClick={() => price && onSelectDate(price)}
                     className={`
-                      relative border-r border-zinc-100 dark:border-zinc-800
+                      relative border-r border-zinc-200 dark:border-zinc-800
                       min-h-[72px] sm:min-h-[88px]
                       flex flex-col p-1.5 sm:p-2
                       transition-all
@@ -267,7 +268,7 @@ export default function CalendarGrid({
                           <span
                             className={`text-[10px] sm:text-xs font-semibold leading-tight mt-auto ${changeText}`}
                           >
-                            {formatPct(price.changePercent)}
+                            {formatChangeByMode(price.change, price.changePercent, symbol, historyData?.currency ?? "USD", unitMode)}
                           </span>
                         )}
                       </>
@@ -321,7 +322,7 @@ export default function CalendarGrid({
                             : "text-zinc-500"
                         }`}
                       >
-                        {formatPct(row.summary.changePercent)}
+                        {formatChangeByMode(row.summary.change, row.summary.changePercent, symbol, historyData?.currency ?? "USD", unitMode)}
                       </span>
                     )}
                   </>
